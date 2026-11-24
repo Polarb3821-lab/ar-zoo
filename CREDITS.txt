@@ -2,3 +2,4 @@
 - Fox.glb: Khronos glTF-Sample-Assets (모델 PixelMannen CC0, 리깅·애니메이션 tomkranis CC-BY 4.0)
 - Horse / Flamingo / Parrot / Stork.glb: three.js 예제 모델 (원작 mirada, "ro.me" 프로젝트)
 수학·과학 모델: gen_models.py로 직접 생성
+- 동물 모델은 실제 크기(m)로 보이도록 최상위 노드에 축척만 추가했습니다.

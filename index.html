@@ -109,18 +109,18 @@
 
 <script>
 // ▼ 모델 목록 — 한 줄씩 추가하면 됩니다.
-//   src: .glb 경로 / length: 실제 크기(m) → 그 크기로 자동 축척 (없으면 파일 크기 그대로)
+//   src: .glb 경로 — 모델 파일은 미터(m) 단위로 만들어 두세요 (1 = 1m)
 const CATALOG = {
   "🐾 동물": [
-    { name: "여우", length: 0.9, src: "models/animals/Fox.glb",
+    { name: "여우", src: "models/animals/Fox.glb",
       desc: "붉은여우는 몸길이 약 60~90cm, 꼬리는 30~50cm 정도입니다. 🎬 버튼으로 걷기·뛰기 동작을 바꿀 수 있어요." },
-    { name: "말", length: 2.4, src: "models/animals/Horse.glb",
+    { name: "말", src: "models/animals/Horse.glb",
       desc: "말은 몸길이 약 2.4m, 어깨 높이 1.4~1.8m입니다." },
-    { name: "홍학", length: 1.3, src: "models/animals/Flamingo.glb",
+    { name: "홍학", src: "models/animals/Flamingo.glb",
       desc: "홍학은 날개를 펴면 1.4~1.7m에 이릅니다." },
-    { name: "앵무새", length: 0.9, src: "models/animals/Parrot.glb",
+    { name: "앵무새", src: "models/animals/Parrot.glb",
       desc: "큰 앵무새(마코앵무) 날개 편 길이는 약 1m입니다." },
-    { name: "황새", length: 2.0, src: "models/animals/Stork.glb",
+    { name: "황새", src: "models/animals/Stork.glb",
       desc: "황새는 날개를 펴면 약 2m가 됩니다." },
   ],
   "📐 수학": [
@@ -166,7 +166,7 @@ const CATALOG = {
 const $ = id => document.getElementById(id);
 const viewer = $("viewer"), tabs = $("tabs"), chips = $("chips"), panel = $("panel");
 let cat = null, idx = 0, current = null;
-let baseScale = 1, mul = 1, yaw = 0, animIdx = 0, baseLength = 0;
+let mul = 1, yaw = 0, animIdx = 0, baseLength = 0;
 
 // ---- 카테고리 / 모델 선택 ----
 Object.keys(CATALOG).forEach(c => {
@@ -203,38 +203,39 @@ function select(i) {
 
 const inAR = () => viewer.getAttribute("ar-status") === "session-started";
 
-// ---- 로드 후 실제 크기 맞추기 ----
-viewer.addEventListener("load", () => {
+// ---- 로드 후 처리 (모델 파일이 이미 실제 크기(m)로 만들어져 있음) ----
+viewer.addEventListener("load", async () => {
   const d = viewer.getDimensions();
-  const longest = Math.max(d.x, d.y, d.z);
-  baseScale = (current.length && longest > 0) ? current.length / longest : 1;
-  baseLength = current.length || longest;
+  baseLength = Math.max(d.x, d.y, d.z);
   applyTransform();
-  viewer.updateFraming();
+  await viewer.updateComplete;
+  if (!inAR()) viewer.updateFraming();
   const anims = viewer.availableAnimations || [];
   $("animBtn").style.display = anims.length > 1 ? "" : "none";
   $("playBtn").style.display = anims.length ? "" : "none";
-  if (anims.length) { viewer.animationName = anims[0]; viewer.play(); }
+  if (anims.length) { viewer.animationName = anims[anims.length > 1 ? 1 : 0]; viewer.play(); }
   $("playBtn").textContent = "⏸ 정지";
   $("size").textContent = `실제 크기 기준: 약 ${Math.round(baseLength * 100)} cm`;
   writeDiag();
 });
 
 function applyTransform() {
-  const s = baseScale * mul;
+  const s = mul;
   viewer.scale = `${s} ${s} ${s}`;
   viewer.orientation = `0deg 0deg ${yaw}deg`;
   const cm = Math.round(baseLength * mul * 100);
   $("readout").textContent = `크기 ×${+mul.toFixed(2)} (약 ${cm >= 100 ? (cm/100).toFixed(1) + " m" : cm + " cm"}) · 회전 ${((yaw % 360) + 360) % 360}°`;
 }
 
+async function reframe() { await viewer.updateComplete; if (!inAR()) viewer.updateFraming(); }
+
 // ---- 조작 패널 (3D 화면 + AR 화면 공통) ----
 const actions = {
   prev:    () => select(idx - 1),
   next:    () => select(idx + 1),
-  smaller: () => { mul = Math.max(0.1, mul / 1.5); applyTransform(); },
-  bigger:  () => { mul = Math.min(10, mul * 1.5); applyTransform(); },
-  real:    () => { mul = 1; applyTransform(); },
+  smaller: () => { mul = Math.max(0.1, mul / 1.5); applyTransform(); reframe(); },
+  bigger:  () => { mul = Math.min(10, mul * 1.5); applyTransform(); reframe(); },
+  real:    () => { mul = 1; applyTransform(); reframe(); },
   rotL:    () => { yaw += 45; applyTransform(); },
   rotR:    () => { yaw -= 45; applyTransform(); },
   play:    () => {
@@ -293,7 +294,8 @@ viewer.addEventListener("ar-status", e => {
       : "<br>AR 실패 → Safari에서 열었는지, iOS가 최신인지 확인해 주세요.";
 });
 
-showCategory(Object.keys(CATALOG)[0]);
+// model-viewer가 준비된 뒤에 시작
+customElements.whenDefined("model-viewer").then(() => showCategory(Object.keys(CATALOG)[0]));
 </script>
 </body>
 </html>
