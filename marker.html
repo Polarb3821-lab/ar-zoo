@@ -44,9 +44,12 @@
 </head>
 <body>
 
+<!-- 카메라 해상도를 화면 방향에 맞춰 요청한 뒤 장면을 만든다.
+     (AR.js 기본값은 가로 640×480이라, 세로 화면에서는 양옆이 크게 잘려 줌한 것처럼 보임) -->
+<template id="sceneTpl">
 <a-scene embedded vr-mode-ui="enabled: false" loading-screen="enabled: false"
          renderer="logarithmicDepthBuffer: true; colorManagement: true; antialias: true"
-         arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono; patternRatio: 0.5; cameraParametersUrl: marker/camera_para.dat;">
+         arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono; patternRatio: 0.5; cameraParametersUrl: marker/camera_para.dat; sourceWidth: SRC_W; sourceHeight: SRC_H;">
   <a-assets timeout="30000"></a-assets>
 
   <!-- 직접 만든 발자국 마커: marker/paw-marker-A4.pdf 로 인쇄 -->
@@ -62,6 +65,15 @@
   <a-entity light="type: directional; intensity: 1.2" position="1 2 1"></a-entity>
   <a-entity camera></a-entity>
 </a-scene>
+</template>
+<script>
+(() => {
+  const portrait = window.innerHeight >= window.innerWidth;
+  const [w, h] = portrait ? [720, 1280] : [1280, 720];
+  const html = document.getElementById("sceneTpl").innerHTML.replace("SRC_W", w).replace("SRC_H", h);
+  document.getElementById("sceneTpl").insertAdjacentHTML("afterend", html);
+})();
+</script>
 
 <div class="ui" id="top">
   <a href="index.html" id="back">← 바닥 AR</a>
