@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AR 탐구실</title>
+<title>AR 동물원</title>
 <!-- Google model-viewer: 3D 표시 + AR(안드로이드 WebXR·Scene Viewer / iOS Quick Look) -->
 <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
 <style>
@@ -35,6 +35,7 @@
             background: #1a73e8; color: #fff; border: none; border-radius: 999px;
             padding: 10px 18px; font-size: 15px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
 
+  .marker-btn { top: 62px; background: #222; text-decoration: none; }
   /* 조작 패널: 3D 화면과 AR(WebXR) 화면 모두에서 보임 */
   .panel { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
            width: min(96%, 460px); background: rgba(20,20,20,.72); color: #fff;
@@ -47,6 +48,9 @@
                   background: rgba(255,255,255,.16); color:#fff; cursor:pointer; }
   .panel button:active { background: rgba(255,255,255,.35); }
   .panel .nav { flex: none; width: 44px; }
+  .panel .pcats { margin: 0 0 8px; }
+  .panel .pcats button { padding: 7px 0; font-size: 14px; }
+  .panel .pcats button.active { background: #1a73e8; }
   .panel .readout { font-size:12px; opacity:.8; text-align:center; margin-top:6px; }
   .panel .desc { display:none; font-size:13px; line-height:1.5; margin-top:8px; opacity:.95; }
   .panel.show-desc .desc { display:block; }
@@ -67,8 +71,8 @@
 </head>
 <body>
 <header>
-  <h1>🔭 AR 탐구실</h1>
-  <p class="sub">모델을 고르고 휴대폰에서 “AR로 보기”를 누르세요.</p>
+  <h1>🦖 AR 동물원</h1>
+  <p class="sub">모델을 고르고 “바닥에 놓기” 또는 “마커 위에 놓기”를 누르세요. <a href="marker/paw-marker-A4.pdf">마커 인쇄하기</a></p>
 </header>
 
 <div id="inapp"></div>
@@ -81,11 +85,13 @@
   ar ar-modes="webxr scene-viewer quick-look" ar-scale="auto" ar-placement="floor"
   alt="3D 모델">
   <div slot="ar-button" style="display:none"></div><!-- 기본 AR 버튼 숨김: 아래 버튼으로 직접 시작 -->
-  <button class="ar-btn" id="arBtn" style="display:none">📱 AR로 보기</button>
+  <button class="ar-btn" id="arBtn" style="display:none">📱 바닥에 놓기</button>
+  <a class="ar-btn marker-btn" id="markerBtn" href="marker.html">🎴 마커 위에 놓기</a>
   <div class="ar-hint">휴대폰을 천천히 움직여 바닥을 비춰 주세요</div>
   <div class="ar-guide">👆 모델 <b>발밑</b>을 끌면 이동 · 한 손가락으로 쓸면 회전 · 🤏 두 손가락으로 크기 조절</div>
 
   <div class="panel" id="panel">
+    <div class="row pcats" id="pCats"></div>
     <div class="title">
       <button class="nav" data-act="prev">◀</button>
       <b id="pName"></b>
@@ -116,96 +122,20 @@
   <div id="diag"></div>
 </div>
 
+<script src="catalog.js"></script>
 <script>
-// ▼ 모델 목록 — 한 줄씩 추가하면 됩니다.
-//   src: .glb 경로 — 모델 파일은 미터(m) 단위로 만들어 두세요 (1 = 1m)
-const CATALOG = {
-  "🐾 동물": [
-    { name: "여우", src: "models/animals/Fox.glb",
-      desc: "붉은여우는 몸길이 약 60~90cm, 꼬리는 30~50cm 정도입니다. 🎬 버튼으로 걷기·뛰기 동작을 바꿀 수 있어요." },
-    { name: "말", src: "models/animals/Horse.glb",
-      desc: "말은 몸길이 약 2.4m, 어깨 높이 1.4~1.8m입니다." },
-    { name: "홍학", src: "models/animals/Flamingo.glb",
-      desc: "홍학은 날개를 펴면 1.4~1.7m에 이릅니다." },
-    { name: "앵무새", src: "models/animals/Parrot.glb",
-      desc: "큰 앵무새(마코앵무) 날개 편 길이는 약 1m입니다." },
-    { name: "황새", src: "models/animals/Stork.glb",
-      desc: "황새는 날개를 펴면 약 2m가 됩니다." },
-    { name: "젖소", src: "models/animals/Cow.glb",
-      desc: "젖소(홀스타인)는 몸길이 약 2.4m, 몸무게 600~700kg입니다." },
-    { name: "말 (농장)", src: "models/animals/FarmHorse.glb",
-      desc: "말은 몸길이 약 2.4m입니다. 🎬 버튼으로 걷기·점프 등 동작을 바꿔 보세요." },
-    { name: "얼룩말", src: "models/animals/Zebra.glb",
-      desc: "얼룩말의 줄무늬는 개체마다 달라서 사람의 지문처럼 구별에 쓰입니다. 몸길이 약 2.4m." },
-    { name: "라마", src: "models/animals/Llama.glb",
-      desc: "남아메리카 안데스 지역의 가축. 머리까지 높이 약 1.8m입니다." },
-    { name: "돼지", src: "models/animals/Pig.glb",
-      desc: "돼지는 몸길이 약 1.5m. 후각이 매우 발달한 동물입니다." },
-    { name: "양", src: "models/animals/Sheep.glb",
-      desc: "양은 몸길이 약 1.3m. 털은 1년에 한 번 정도 깎습니다." },
-    { name: "퍼그", src: "models/animals/Pug.glb",
-      desc: "퍼그는 몸길이 약 45cm의 소형견입니다." },
-  ],
-  "🦖 공룡": [
-    { name: "티라노사우루스", src: "models/animals/trex.glb",
-      desc: "백악기 후기의 육식공룡. 몸길이 약 12m, 무는 힘이 육상동물 중 가장 강했던 것으로 추정됩니다." },
-    { name: "벨로키랍토르", src: "models/animals/velociraptor.glb",
-      desc: "몸길이 약 2m의 작고 날쌘 육식공룡. 뒷발에 갈고리 발톱이 있고, 깃털이 있었던 것으로 알려져 있습니다." },
-    { name: "트리케라톱스", src: "models/animals/triceratops.glb",
-      desc: "뿔 세 개와 큰 목 방패를 가진 초식공룡. 몸길이 약 9m입니다." },
-    { name: "스테고사우루스", src: "models/animals/stegosaurus.glb",
-      desc: "등에 큰 골판, 꼬리에 가시가 있는 쥐라기 초식공룡. 몸길이 약 9m입니다." },
-    { name: "아파토사우루스", src: "models/animals/apatosaurus.glb",
-      desc: "긴 목과 꼬리를 가진 거대한 용각류. 몸길이 약 22m로, 실제 크기로 보면 교실보다 큽니다." },
-    { name: "파라사우롤로푸스", src: "models/animals/parasaurolophus.glb",
-      desc: "머리 뒤로 긴 볏이 있는 오리주둥이 공룡. 볏 속 관으로 소리를 냈을 것으로 추정됩니다. 몸길이 약 9.5m." },
-  ],
-  "📐 수학": [
-    { name: "정사면체", src: "models/tetrahedron.glb",
-      desc: "정삼각형 4개. 꼭짓점 4, 모서리 6, 면 4 → v − e + f = 2 (오일러 공식)." },
-    { name: "정육면체", src: "models/cube.glb",
-      desc: "정사각형 6개. v = 8, e = 12, f = 6. 정팔면체와 서로 쌍대입니다." },
-    { name: "정팔면체", src: "models/octahedron.glb",
-      desc: "정삼각형 8개. v = 6, e = 12, f = 8. 한 꼭짓점에 면이 4개씩 모입니다." },
-    { name: "정십이면체", src: "models/dodecahedron.glb",
-      desc: "정오각형 12개. v = 20, e = 30, f = 12. 정이십면체와 쌍대입니다." },
-    { name: "정이십면체", src: "models/icosahedron.glb",
-      desc: "정삼각형 20개. v = 12, e = 30, f = 20. 한 꼭짓점에 면이 5개씩 모입니다." },
-    { name: "토러스", src: "models/torus.glb",
-      desc: "도넛 모양 곡면. 오일러 지표 0. 바깥쪽은 가우스 곡률이 양수, 안쪽은 음수입니다." },
-    { name: "뫼비우스 띠", src: "models/mobius.glb",
-      desc: "면이 하나뿐인 곡면(비가향). 띠를 따라 한 바퀴 돌면 앞뒤가 뒤바뀝니다." },
-    { name: "말안장면", src: "models/saddle.glb",
-      desc: "z = x² − y² (쌍곡포물면). 원점에서 가우스 곡률이 음수인 대표 예입니다." },
-    { name: "헬리코이드", src: "models/helicoid.glb",
-      desc: "나선면. 평균곡률이 0인 극소곡면이며, 카테노이드와 국소적으로 등거리 변형됩니다." },
-    { name: "카테노이드", src: "models/catenoid.glb",
-      desc: "현수선을 회전시킨 곡면. 두 고리 사이 비누막이 만드는 극소곡면입니다." },
-    { name: "클라인 병", src: "models/klein.glb",
-      desc: "안과 밖 구분이 없는 닫힌 곡면. 3차원에서는 자기 자신을 관통해야만 만들 수 있습니다." },
-  ],
-  "🧪 과학": [
-    { name: "물 (H₂O)", src: "models/water.glb",
-      desc: "굽은형 구조. 결합각 약 104.5°. 산소의 비공유 전자쌍 2개가 수소를 밀어냅니다." },
-    { name: "메테인 (CH₄)", src: "models/methane.glb",
-      desc: "정사면체형 구조. 결합각 109.5°. 탄소가 정사면체의 중심에 있습니다." },
-    { name: "암모니아 (NH₃)", src: "models/ammonia.glb",
-      desc: "삼각뿔형 구조. 결합각 약 107°. 질소의 비공유 전자쌍 1개가 위쪽을 차지합니다." },
-    { name: "이산화탄소 (CO₂)", src: "models/co2.glb",
-      desc: "직선형 구조. 결합각 180°로 극성이 상쇄되어 무극성 분자입니다." },
-    { name: "DNA 이중나선", src: "models/dna.glb",
-      desc: "두 가닥이 꼬인 나선. 한 바퀴에 약 10염기쌍. 색깔 막대는 염기쌍(A–T, G–C)을 나타냅니다." },
-    { name: "탄소 원자 (보어 모형)", src: "models/atom.glb",
-      desc: "원자핵(양성자 6, 중성자 6) 둘레에 전자 껍질 2개(전자 2, 4). 실제 크기는 아닙니다." },
-  ],
-};
+const CATALOG = window.CATALOG;
 
 const $ = id => document.getElementById(id);
 const viewer = $("viewer"), tabs = $("tabs"), chips = $("chips"), panel = $("panel");
 let cat = null, idx = 0, current = null;
 const AR_HEIGHT = 0.30;          // AR 처음 등장 높이 (m)
+let baseCenter = { x: 0, y: 0, z: 0 }, baseDiag = 0, baseHoriz = 0;
 let sc = 1, yaw = 0, animIdx = 0, baseLength = 0, baseHeight = 0, arWanted = false;
-const fit30 = () => (baseHeight > 0 ? AR_HEIGHT / baseHeight : 1);
+// 동물·공룡 파일은 높이 30cm로 만들어져 있음 → 처음엔 배율 1 (이동 패드가 발밑에 정확히 깔림)
+// real: 실제 크기가 되려면 몇 배 키워야 하는지 / 모든 모델에 real 값이 있음
+const realScale = () => current?.real || 1;
+const fit30 = () => (current?.real ? 1 : (baseHeight > 0 ? AR_HEIGHT / baseHeight : 1));
 
 // ---- 카테고리 / 모델 선택 ----
 Object.keys(CATALOG).forEach(c => {
@@ -214,16 +144,24 @@ Object.keys(CATALOG).forEach(c => {
   tabs.appendChild(b);
 });
 
+// 패널 안 카테고리 버튼 (AR 화면에서 탭 바꾸기)
+Object.keys(CATALOG).forEach(c => {
+  const b = document.createElement("button");
+  b.dataset.act = "cat"; b.dataset.cat = c; b.textContent = c;
+  $("pCats").appendChild(b);
+});
+
 function showCategory(c) {
   cat = c;
   [...tabs.children].forEach(t => t.classList.toggle("active", t.textContent === c));
+  [...$("pCats").children].forEach(t => t.classList.toggle("active", t.dataset.cat === c));
   chips.innerHTML = "";
   CATALOG[c].forEach((m, i) => {
     const b = document.createElement("button");
     b.className = "chip"; b.textContent = m.name; b.onclick = () => select(i);
     chips.appendChild(b);
   });
-  select(0);
+  select(startIdx); startIdx = 0;
 }
 
 function select(i) {
@@ -232,9 +170,13 @@ function select(i) {
   current = list[idx];
   [...chips.children].forEach((c, j) => c.classList.toggle("active", idx === j));
   yaw = 0; animIdx = 0;
-  viewer.scale = "1 1 1"; viewer.orientation = "0deg 0deg 0deg";
-  viewer.autoRotate = !/동물|공룡/.test(cat) && !inAR();
+  sc = 1; applyTransform();
+  viewer.autoRotate = false;
+  viewer.cameraTarget = "auto auto auto";   // 새 모델은 자동 맞춤
+  viewer.cameraOrbit = "auto auto auto";
+  viewer.maxCameraOrbit = "auto auto auto";
   viewer.src = current.src;
+  $("markerBtn").href = `marker.html?cat=${encodeURIComponent(cat)}&i=${idx}`;   // 같은 모델로 마커 모드 시작
   $("name").textContent = $("pName").textContent = current.name;
   $("desc").textContent = $("pDesc").textContent = current.desc;
   $("size").textContent = "";
@@ -245,40 +187,51 @@ const inAR = () => ["session-started", "object-placed"].includes(viewer.getAttri
 // ---- 로드 후 처리 (모델 파일이 이미 실제 크기(m)로 만들어져 있음) ----
 viewer.addEventListener("load", async () => {
   const d = viewer.getDimensions();
-  baseLength = Math.max(d.x, d.y, d.z); baseHeight = d.y;
-  sc = arWanted ? fit30() : 1;      // AR 중이면 30cm 높이로, 아니면 실제 크기
+  baseLength = Math.max(d.x, d.y, d.z); baseHeight = d.y; baseDiag = Math.hypot(d.x, d.y, d.z); baseHoriz = Math.hypot(d.x, d.z);
+  const bc = viewer.getBoundingBoxCenter(); baseCenter = { x: bc.x, y: bc.y, z: bc.z };
+  sc = 1;
   applyTransform();
-  await viewer.updateComplete;
-  if (!inAR()) viewer.updateFraming();
+  reframe();
   const anims = animList();
   $("animBtn").style.display = anims.length > 1 ? "" : "none";
   $("playBtn").style.display = anims.length ? "" : "none";
   if (anims.length) {
     // 기본 동작: 걷기 → 대기 → 첫 번째 순
-    const pick = anims.find(a => /^walk$/i.test(a)) || anims.find(a => /walk/i.test(a)) || anims.find(a => /idle/i.test(a)) || anims[0];
+    const base = a => a.replace(/^.*\|/, "");
+    const pick = anims.find(a => /^walk$/i.test(base(a))) || anims.find(a => /walk|swim/i.test(a)) || anims.find(a => /idle/i.test(a)) || anims[0];
     animIdx = anims.indexOf(pick);
     viewer.animationName = pick; viewer.play();
   }
   $("playBtn").textContent = "⏸ 정지";
-  $("size").textContent = `실제 크기 기준: 약 ${Math.round(baseLength * 100)} cm`;
+  const realH = baseHeight * realScale();
+  $("size").textContent = current.real ? `실제 높이: 약 ${realH >= 1 ? realH.toFixed(1) + " m" : Math.round(realH * 100) + " cm"} (처음엔 30cm로 보여요)` : `크기: 약 ${Math.round(baseLength * 100)} cm`;
   writeDiag();
 });
 
 function applyTransform() {
-  viewer.scale = `${sc} ${sc} ${sc}`;
-  viewer.orientation = `0deg 0deg ${yaw}deg`;
+  const newScale = `${sc} ${sc} ${sc}`, newOri = `0deg 0deg ${yaw}deg`;
+  if (viewer.scale !== newScale) viewer.scale = newScale;          // 바뀔 때만 적용
+  if (viewer.orientation !== newOri) viewer.orientation = newOri;
   const fmt = m => { const cm = Math.round(m * 100); return cm >= 100 ? (cm / 100).toFixed(1) + " m" : cm + " cm"; };
-  $("readout").textContent = `높이 약 ${fmt(baseHeight * sc)} · 실제의 ×${+sc.toFixed(2)} · 회전 ${((yaw % 360) + 360) % 360}°`;
+  $("readout").textContent = `높이 약 ${fmt(baseHeight * sc)} · 실제의 ×${+(sc / realScale()).toFixed(2)} · 회전 ${((yaw % 360) + 360) % 360}°`;
 }
 
-// 동작 목록 ('죽음' 동작은 제외) + 한글 이름
-const animList = () => (viewer.availableAnimations || []).filter(a => !/death/i.test(a));
-const ANIM_KO = { idle: "가만히 있기", walkslow: "천천히 걷기", walk: "걷기", run: "달리기", jump: "점프",
-                  attack: "공격", survey: "둘러보기", gallop: "달리기" };
-const animLabel = a => { const k = a.toLowerCase().replace(/^.*\|/, "").replace(/[^a-z]/g, "");
-  return ANIM_KO[k] || Object.entries(ANIM_KO).find(([e]) => k.includes(e))?.[1] || a; };
+const animList = () => animFilter(viewer.availableAnimations);
 
-async function reframe() { await viewer.updateComplete; if (!inAR()) viewer.updateFraming(); }
+async function reframe() {
+  await viewer.updateComplete;
+  if (inAR()) return;
+  const aspect = Math.min(viewer.clientWidth / Math.max(viewer.clientHeight, 1), 1);  // 세로 화면이면 가로 폭 기준
+  // 패널 위 빈 공간(화면 위쪽 60%)에 모델 높이·가로 폭이 모두 들어가는 거리
+  const r = Math.max(baseHeight * 6, baseHoriz * 2.3 / aspect, 0.4 / sc) * sc;
+  // 아래쪽 조작 패널에 가리지 않게 모델을 화면 위쪽으로 (카메라 목표점을 조금 아래로)
+  const c = { x: baseCenter.x * sc, y: baseCenter.y * sc, z: baseCenter.z * sc };   // 크기는 원점 기준으로 바뀜
+  viewer.cameraTarget = `${c.x.toFixed(3)}m ${(c.y - 0.11 * r).toFixed(3)}m ${c.z.toFixed(3)}m`;
+  viewer.fieldOfView = "30deg";
+  viewer.cameraOrbit = `auto auto ${r.toFixed(3)}m`;
+  viewer.maxCameraOrbit = `auto auto ${(r * 4).toFixed(3)}m`;
+  viewer.jumpCameraToGoal();
+}
 
 // ---- 조작 패널 (3D 화면 + AR 화면 공통) ----
 const actions = {
@@ -287,7 +240,7 @@ const actions = {
   smaller: () => { sc = sc / 1.5; applyTransform(); reframe(); },
   bigger:  () => { sc = sc * 1.5; applyTransform(); reframe(); },
   fit30:   () => { sc = fit30(); applyTransform(); reframe(); },
-  real:    () => { sc = 1; applyTransform(); reframe(); },
+  real:    () => { sc = realScale(); applyTransform(); reframe(); },
   rotL:    () => { yaw += 45; applyTransform(); },
   rotR:    () => { yaw -= 45; applyTransform(); },
   play:    () => {
@@ -306,7 +259,7 @@ const actions = {
 };
 panel.addEventListener("click", e => {
   const b = e.target.closest("button[data-act]");
-  if (b) { e.stopPropagation(); actions[b.dataset.act](); }
+  if (b) { e.stopPropagation(); b.dataset.act === "cat" ? showCategory(b.dataset.cat) : actions[b.dataset.act](); }
 });
 // AR 중 버튼 누를 때 모델이 그 자리로 옮겨지지 않게 막기
 panel.addEventListener("beforexrselect", e => e.preventDefault());
@@ -341,7 +294,7 @@ viewer.addEventListener("ar-status", e => {
   if (st === "session-started") viewer.autoRotate = false;
   if (st === "not-presenting" || st === "failed") {      // AR 종료 → 3D 화면은 실제 크기로 복귀
     arWanted = false; sc = 1; applyTransform(); reframe();
-    viewer.autoRotate = !/동물|공룡/.test(cat);
+    viewer.autoRotate = false;
   }
   if (st === "failed")
     $("diag").innerHTML += isAndroid
@@ -353,14 +306,21 @@ viewer.addEventListener("ar-status", e => {
 const arBtn = $("arBtn");
 arBtn.addEventListener("click", async e => {
   e.stopPropagation();
-  arWanted = true; yaw = 0; sc = fit30(); applyTransform();
+  arWanted = true; yaw = 0; sc = 1; applyTransform();   // 배율 1로 시작 → 30cm, 패드는 발밑
   await viewer.updateComplete;
   viewer.activateAR();
 });
-viewer.addEventListener("load", () => { arBtn.style.display = viewer.canActivateAR ? "" : "none"; });
+viewer.addEventListener("load", () => {
+  arBtn.style.display = viewer.canActivateAR ? "" : "none";
+  $("markerBtn").style.top = viewer.canActivateAR ? "62px" : "12px";   // 바닥 AR이 안 되는 기기면 마커 버튼을 위로
+});
 
 // model-viewer가 준비된 뒤에 시작
-customElements.whenDefined("model-viewer").then(() => showCategory(Object.keys(CATALOG)[0]));
+// 마커 모드에서 돌아오면 보던 모델로 (?cat=..&i=..)
+const q = new URLSearchParams(location.search);
+let startIdx = parseInt(q.get("i")) || 0;
+const startCat = CATALOG[q.get("cat")] ? q.get("cat") : Object.keys(CATALOG)[0];
+customElements.whenDefined("model-viewer").then(() => showCategory(startCat));
 </script>
 </body>
 </html>

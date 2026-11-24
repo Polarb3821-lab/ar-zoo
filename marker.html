@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>AR 동물원 · 마커 모드</title>
+<!-- A-Frame 1.6.0 + AR.js 3.4.8 (마커 인식) — 저장소 안 lib 폴더에 함께 들어 있음 -->
+<script src="lib/aframe-v1.6.0.min.js"></script>
+<script src="lib/aframe-ar-3.4.8.js"></script>
+<script src="catalog.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden;
+               font-family: system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif; }
+  .ui { position: fixed; z-index: 10; color: #fff; }
+  #top { top: 10px; left: 10px; right: 10px; display: flex; gap: 8px; align-items: center; }
+  #top a { background: rgba(20,20,20,.72); color: #fff; text-decoration: none; padding: 9px 14px;
+           border-radius: 999px; font-size: 14px; font-weight: 600; }
+  #status { margin-left: auto; background: rgba(20,20,20,.72); padding: 9px 14px; border-radius: 999px; font-size: 13px; }
+  #status.found { background: rgba(26,115,232,.9); }
+  .panel { left: 50%; bottom: 14px; transform: translateX(-50%); width: min(96%, 460px);
+           background: rgba(20,20,20,.72); border-radius: 16px; padding: 8px 10px 10px;
+           backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+  .panel .title { display:flex; align-items:center; gap:6px; }
+  .panel .title b { font-size: 16px; text-align:center; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .panel .row { display:flex; gap:6px; margin-top:8px; }
+  .panel button { flex:1; border:none; border-radius:10px; padding:10px 0; font-size:16px;
+                  background: rgba(255,255,255,.16); color:#fff; cursor:pointer; }
+  .panel button:active { background: rgba(255,255,255,.35); }
+  .panel .nav { flex: none; width: 44px; }
+  .panel .pcats { margin: 0 0 8px; }
+  .panel .pcats button { padding: 7px 0; font-size: 14px; }
+  .panel .pcats button.active { background: #1a73e8; }
+  .panel .readout { font-size:12px; opacity:.8; text-align:center; margin-top:6px; }
+  .panel .desc { display:none; font-size:13px; line-height:1.5; margin-top:8px; }
+  .panel.show-desc .desc { display:block; }
+  #help { top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none;
+          background: rgba(0,0,0,.55); padding: 14px 18px; border-radius: 14px; font-size: 15px; line-height: 1.6; }
+  #help.hide { display: none; }
+  .a-enter-vr, .a-enter-ar, .a-orientation-modal { display: none !important; }
+  #err { display:none; top: 30%; left: 8%; right: 8%; background: #fff; color: #222; padding: 16px;
+         border-radius: 14px; font-size: 15px; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<a-scene embedded vr-mode-ui="enabled: false" loading-screen="enabled: false"
+         renderer="logarithmicDepthBuffer: true; colorManagement: true; antialias: true"
+         arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono; patternRatio: 0.5; cameraParametersUrl: marker/camera_para.dat;">
+  <a-assets timeout="30000"></a-assets>
+
+  <!-- 직접 만든 발자국 마커: marker/paw-marker-A4.pdf 로 인쇄 -->
+  <a-marker id="marker" type="pattern" url="marker/paw.patt" smooth="true" smoothCount="5" smoothTolerance="0.01" smoothThreshold="2" emitevents="true">
+    <a-entity id="spin">
+      <a-entity id="model" anim-player></a-entity>
+    </a-entity>
+    <!-- 모델 아래 그림자 느낌의 원 -->
+    <a-circle id="shadow" radius="0.5" rotation="-90 0 0" position="0 0.002 0" material="color: #000; opacity: 0.25; transparent: true; shader: flat"></a-circle>
+  </a-marker>
+
+  <a-entity light="type: hemisphere; color: #ffffff; groundColor: #777; intensity: 1.6"></a-entity>
+  <a-entity light="type: directional; intensity: 1.2" position="1 2 1"></a-entity>
+  <a-entity camera></a-entity>
+</a-scene>
+
+<div class="ui" id="top">
+  <a href="index.html" id="back">← 바닥 AR</a>
+  <a href="marker/paw-marker-A4.pdf" target="_blank">🖨 마커</a>
+  <span id="status">마커를 찾는 중…</span>
+</div>
+
+<div class="ui" id="help">🐾 인쇄한 발자국 마커를<br>카메라에 비춰 주세요</div>
+<div class="ui" id="err"></div>
+
+<div class="ui panel" id="panel">
+  <div class="row pcats" id="pCats"></div>
+  <div class="title">
+    <button class="nav" data-act="prev">◀</button>
+    <b id="pName"></b>
+    <button class="nav" data-act="next">▶</button>
+  </div>
+  <div class="row">
+    <button data-act="smaller">➖ 작게</button>
+    <button data-act="reset">↺ 기본</button>
+    <button data-act="bigger">➕ 크게</button>
+  </div>
+  <div class="row">
+    <button data-act="rotL">⟲ 45°</button>
+    <button data-act="rotR">⟳ 45°</button>
+    <button data-act="play" id="playBtn">⏸ 정지</button>
+    <button data-act="anim" id="animBtn">🎬 동작</button>
+    <button data-act="info">ℹ️</button>
+  </div>
+  <div class="readout" id="readout"></div>
+  <div class="desc" id="pDesc"></div>
+</div>
+
+<script>
+// ---- 애니메이션 재생 컴포넌트 (모델 안의 동작을 재생) ----
+AFRAME.registerComponent("anim-player", {
+  init() {
+    this.mixer = null; this.clips = []; this.action = null; this.paused = false;
+    this.el.addEventListener("model-loaded", () => {
+      const obj = this.el.getObject3D("mesh");
+      this.clips = obj.animations || [];
+      this.mixer = this.clips.length ? new THREE.AnimationMixer(obj) : null;
+      this.el.emit("anims-ready", { names: this.clips.map(c => c.name) });
+    });
+  },
+  play_(name) {
+    if (!this.mixer) return;
+    const clip = this.clips.find(c => c.name === name); if (!clip) return;
+    if (this.action) this.action.fadeOut(0.2);
+    this.action = this.mixer.clipAction(clip).reset().fadeIn(0.2).play();
+    this.paused = false;
+  },
+  tick(t, dt) { if (this.mixer && !this.paused) this.mixer.update(Math.min(dt, 100) / 1000); },
+});
+
+// ---- 화면 / 상태 ----
+const $ = id => document.getElementById(id);
+const CATALOG = window.CATALOG;
+const BASE = 1.6;          // 모델 파일 30cm 높이 → 마커 한 변(=1)의 약 절반 높이
+let cat, idx = 0, current, mul = 1, yaw = 0, anims = [], animIdx = 0;
+const model = $("model"), spin = $("spin"), player = () => model.components["anim-player"];
+
+Object.keys(CATALOG).forEach(c => {
+  const b = document.createElement("button");
+  b.dataset.act = "cat"; b.dataset.cat = c; b.textContent = c;
+  $("pCats").appendChild(b);
+});
+
+function showCategory(c, i = 0) {
+  cat = c;
+  [...$("pCats").children].forEach(t => t.classList.toggle("active", t.dataset.cat === c));
+  select(i);
+}
+
+function select(i) {
+  const list = CATALOG[cat];
+  idx = (i + list.length) % list.length; current = list[idx];
+  mul = 1; yaw = 0;
+  $("pName").textContent = current.name; $("pDesc").textContent = current.desc;
+  $("readout").textContent = "불러오는 중…";
+  model.removeAttribute("gltf-model");
+  model.setAttribute("gltf-model", current.src);
+  $("back").href = `index.html?cat=${encodeURIComponent(cat)}&i=${idx}`;
+  apply();
+}
+
+function apply() {
+  const s = BASE * mul;
+  model.object3D.scale.set(s, s, s);
+  spin.object3D.rotation.y = THREE.MathUtils.degToRad(yaw);
+  const r = 0.45 * mul;
+  $("shadow").setAttribute("radius", Math.min(r, 1.2));
+  $("readout").textContent = `크기 ×${+mul.toFixed(2)} · 회전 ${((yaw % 360) + 360) % 360}°`;
+}
+
+model.addEventListener("anims-ready", e => {
+  anims = animFilter(e.detail.names);
+  $("animBtn").style.display = anims.length > 1 ? "" : "none";
+  $("playBtn").style.display = anims.length ? "" : "none";
+  $("playBtn").textContent = "⏸ 정지";
+  if (anims.length) {
+    const base = a => a.replace(/^.*\|/, "");
+    const pick = anims.find(a => /^walk$/i.test(base(a))) || anims.find(a => /walk|swim/i.test(a)) || anims.find(a => /idle/i.test(a)) || anims[0];
+    animIdx = anims.indexOf(pick); player().play_(pick);
+  }
+  apply();
+});
+
+const actions = {
+  prev: () => select(idx - 1),
+  next: () => select(idx + 1),
+  smaller: () => { mul = Math.max(0.2, mul / 1.4); apply(); },
+  bigger:  () => { mul = Math.min(6, mul * 1.4); apply(); },
+  reset:   () => { mul = 1; yaw = 0; apply(); },
+  rotL:    () => { yaw += 45; apply(); },
+  rotR:    () => { yaw -= 45; apply(); },
+  play:    () => { const p = player(); p.paused = !p.paused; $("playBtn").textContent = p.paused ? "▶ 재생" : "⏸ 정지"; },
+  anim:    () => { if (!anims.length) return; animIdx = (animIdx + 1) % anims.length; player().play_(anims[animIdx]);
+                   $("playBtn").textContent = "⏸ 정지"; $("readout").textContent = `동작: ${animLabel(anims[animIdx])}`; },
+  info:    () => $("panel").classList.toggle("show-desc"),
+};
+$("panel").addEventListener("click", e => {
+  const b = e.target.closest("button[data-act]");
+  if (!b) return;
+  b.dataset.act === "cat" ? showCategory(b.dataset.cat) : actions[b.dataset.act]();
+});
+
+// 마커 인식 상태
+const marker = $("marker");
+marker.addEventListener("markerFound", () => { $("status").textContent = "✅ 마커 인식"; $("status").classList.add("found"); $("help").classList.add("hide"); });
+marker.addEventListener("markerLost",  () => { $("status").textContent = "마커를 찾는 중…"; $("status").classList.remove("found"); });
+
+// 카메라를 못 켤 때 안내
+window.addEventListener("camera-error", () => {
+  const ua = navigator.userAgent;
+  const inApp = /KAKAOTALK|NAVER|Instagram|FBAN|FBAV|Line\/|DaumApps|everytimeApp|; wv\)/i.test(ua);
+  $("err").style.display = "block";
+  $("err").innerHTML = inApp
+    ? "카카오톡 등 앱 안의 브라우저에서는 카메라를 쓸 수 없어요.<br>Safari나 Chrome으로 다시 열어 주세요."
+    : "카메라를 켤 수 없어요.<br>주소창 옆의 권한 설정에서 <b>카메라 허용</b>을 눌러 주세요.";
+});
+
+// 시작: index.html에서 고른 모델이 있으면 그 모델로
+const q = new URLSearchParams(location.search);
+const startCat = CATALOG[q.get("cat")] ? q.get("cat") : Object.keys(CATALOG)[0];
+const sceneEl = document.querySelector("a-scene");
+const start = () => showCategory(startCat, parseInt(q.get("i")) || 0);
+sceneEl.hasLoaded ? start() : sceneEl.addEventListener("loaded", start);
+</script>
+</body>
+</html>

@@ -4,5 +4,14 @@
 - Cow / FarmHorse / Llama / Pig / Pug / Sheep / Zebra.glb: Quaternius "Farm Animals" 등 (CC0), three.js 매뉴얼 자료에서 가져옴
 - trex / velociraptor / triceratops / stegosaurus / apatosaurus / parasaurolophus.glb:
   Quaternius "Animated LowPoly Dinosaurs" (CC0), https://quaternius.itch.io/animated-lowpoly-dinosaurs
-- 동물·공룡 모델은 실제 크기(m)로 보이도록 최상위 노드에 축척만 추가했습니다.
-- 수학·과학 모델: gen_models.py로 직접 생성
+- Alpaca / Bull / Deer / Donkey / Horse_White / Husky / ShibaInu / Stag / Wolf.glb:
+  Quaternius "Ultimate Animated Animals" (CC0), https://quaternius.com/packs/ultimateanimatedanimals.html
+- Dolphin / Manta_ray / Shark / Whale.glb: Quaternius "Animated Fish Pack" (CC0)
+  (위 13종은 github.com/trebeljahr/quaternius-showcase 에 올라온 GLB를 사용)
+- 동물·공룡 모델은 처음에 높이 30cm로 보이도록 최상위 노드에 축척만 추가했습니다.
+
+
+마커 모드 라이브러리 (lib 폴더, 모두 MIT 라이선스)
+- A-Frame 1.6.0 — https://github.com/aframevr/aframe
+- AR.js 3.4.8 — https://github.com/AR-js-org/AR.js (camera_para.dat 포함)
+- 발자국 마커(marker/paw.patt, paw-marker-A4.pdf)는 AR.js 마커 생성 코드로 직접 제작

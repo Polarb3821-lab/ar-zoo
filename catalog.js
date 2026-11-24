@@ -1,0 +1,83 @@
+// AR 동물원 — 두 페이지(index.html, marker.html)가 함께 쓰는 모델 목록과 동작 이름
+// ▼ 모델 목록 — 한 줄씩 추가하면 됩니다.
+//   src: .glb 경로 (처음 높이 30cm로 만들어 둠) / real: 실제 크기가 되는 배율 / desc: 설명
+window.CATALOG = {
+  "🐾 동물": [
+    { name: "여우", src: "models/animals/Fox.glb", real: 1.5305,
+      desc: "붉은여우는 몸길이 약 60~90cm, 꼬리는 30~50cm 정도입니다. 🎬 버튼으로 걷기·뛰기 동작을 바꿀 수 있어요." },
+    { name: "말", src: "models/animals/Horse.glb", real: 4.5249,
+      desc: "말은 몸길이 약 2.4m, 어깨 높이 1.4~1.8m입니다." },
+    { name: "홍학", src: "models/animals/Flamingo.glb", real: 2.1851,
+      desc: "홍학은 날개를 펴면 1.4~1.7m에 이릅니다." },
+    { name: "앵무새", src: "models/animals/Parrot.glb", real: 1.1247,
+      desc: "큰 앵무새(마코앵무) 날개 편 길이는 약 1m입니다." },
+    { name: "황새", src: "models/animals/Stork.glb", real: 2.499,
+      desc: "황새는 날개를 펴면 약 2m가 됩니다." },
+    { name: "젖소", src: "models/animals/Cow.glb", real: 4.4904,
+      desc: "젖소(홀스타인)는 몸길이 약 2.4m, 몸무게 600~700kg입니다." },
+    { name: "말 (농장)", src: "models/animals/FarmHorse.glb", real: 5.9791,
+      desc: "말은 몸길이 약 2.4m입니다. 🎬 버튼으로 걷기·점프 등 동작을 바꿔 보세요." },
+    { name: "얼룩말", src: "models/animals/Zebra.glb", real: 6.1299,
+      desc: "얼룩말의 줄무늬는 개체마다 달라서 사람의 지문처럼 구별에 쓰입니다. 몸길이 약 2.4m." },
+    { name: "라마", src: "models/animals/Llama.glb", real: 6.3333,
+      desc: "남아메리카 안데스 지역의 가축. 머리까지 높이 약 1.8m입니다." },
+    { name: "돼지", src: "models/animals/Pig.glb", real: 2.3472,
+      desc: "돼지는 몸길이 약 1.5m. 후각이 매우 발달한 동물입니다." },
+    { name: "양", src: "models/animals/Sheep.glb", real: 3.1947,
+      desc: "양은 몸길이 약 1.3m. 털은 1년에 한 번 정도 깎습니다." },
+    { name: "퍼그", src: "models/animals/Pug.glb", real: 1.1389,
+      desc: "퍼그는 몸길이 약 45cm의 소형견입니다." },
+    { name: "허스키", src: "models/animals/Husky.glb", real: 2.73,
+      desc: "시베리안 허스키는 추운 지방에서 썰매를 끌던 개입니다. 몸길이 약 1m. 🎬 버튼으로 동작을 바꿔 보세요." },
+    { name: "시바견", src: "models/animals/ShibaInu.glb", real: 1.9767,
+      desc: "일본의 토종견. 몸길이 약 80cm의 작고 단단한 개입니다." },
+    { name: "늑대", src: "models/animals/Wolf.glb", real: 2.73,
+      desc: "개의 조상으로 알려진 동물. 무리를 지어 생활하며 몸길이 약 1.6m입니다." },
+    { name: "사슴", src: "models/animals/Deer.glb", real: 5.89,
+      desc: "암사슴은 뿔이 없습니다. 몸길이 약 1.8m." },
+    { name: "수사슴", src: "models/animals/Stag.glb", real: 6.9933,
+      desc: "수사슴의 뿔은 해마다 떨어지고 다시 자랍니다. 높이 약 2m(뿔 포함)." },
+    { name: "알파카", src: "models/animals/Alpaca.glb", real: 5.3567,
+      desc: "남아메리카의 가축. 털이 부드러워 옷감으로 쓰입니다. 머리까지 높이 약 1.6m." },
+    { name: "황소", src: "models/animals/Bull.glb", real: 5.6933,
+      desc: "황소는 몸길이 약 3m, 몸무게 1톤에 이르기도 합니다." },
+    { name: "당나귀", src: "models/animals/Donkey.glb", real: 5.6767,
+      desc: "당나귀는 말보다 작고 귀가 깁니다. 몸길이 약 2m." },
+    { name: "흰말", src: "models/animals/Horse_White.glb", real: 6.83,
+      desc: "흰말(백마). 몸길이 약 2.4m입니다." },
+  ],
+  "🦖 공룡": [
+    { name: "티라노사우루스", src: "models/animals/trex.glb", real: 19.3006,
+      desc: "백악기 후기의 육식공룡. 몸길이 약 12m, 무는 힘이 육상동물 중 가장 강했던 것으로 추정됩니다." },
+    { name: "벨로키랍토르", src: "models/animals/velociraptor.glb", real: 3.0821,
+      desc: "몸길이 약 2m의 작고 날쌘 육식공룡. 뒷발에 갈고리 발톱이 있고, 깃털이 있었던 것으로 알려져 있습니다." },
+    { name: "트리케라톱스", src: "models/animals/triceratops.glb", real: 12.059,
+      desc: "뿔 세 개와 큰 목 방패를 가진 초식공룡. 몸길이 약 9m입니다." },
+    { name: "스테고사우루스", src: "models/animals/stegosaurus.glb", real: 13.5335,
+      desc: "등에 큰 골판, 꼬리에 가시가 있는 쥐라기 초식공룡. 몸길이 약 9m입니다." },
+    { name: "아파토사우루스", src: "models/animals/apatosaurus.glb", real: 27.4753,
+      desc: "긴 목과 꼬리를 가진 거대한 용각류. 몸길이 약 22m로, 실제 크기로 보면 교실보다 큽니다." },
+    { name: "파라사우롤로푸스", src: "models/animals/parasaurolophus.glb", real: 14.7951,
+      desc: "머리 뒤로 긴 볏이 있는 오리주둥이 공룡. 볏 속 관으로 소리를 냈을 것으로 추정됩니다. 몸길이 약 9.5m." },
+  ],
+  "🐬 바다": [
+    { name: "돌고래", src: "models/animals/Dolphin.glb", real: 3.1237,
+      desc: "돌고래는 물고기가 아니라 폐로 숨 쉬는 포유류입니다. 몸길이 약 2.5m." },
+    { name: "상어", src: "models/animals/Shark.glb", real: 5.695,
+      desc: "상어는 뼈가 연골로 된 물고기입니다. 몸길이 약 4.5m." },
+    { name: "쥐가오리", src: "models/animals/Manta_ray.glb", real: 6.2538,
+      desc: "만타가오리는 지느러미를 펴면 폭이 5m가 넘기도 합니다." },
+    { name: "고래", src: "models/animals/Whale.glb", real: 18.5987,
+      desc: "혹등고래는 몸길이 약 15m. 실제 크기로 보면 버스보다 큽니다." },
+  ],
+};
+
+// 동작 목록 ('죽음' 동작은 제외) + 한글 이름
+const animFilter = names => (names || []).filter(a => !/death|hitreact|jump_?toidle/i.test(a));
+const ANIM_KO = [["attackheadbutt", "박치기"], ["attackkick", "뒷발차기"], ["gallopjump", "뛰어오르기"],
+  ["headlow", "고개 숙이기"], ["idle2", "가만히 있기 2"], ["eating", "풀 뜯기"], ["swim", "헤엄치기"],
+  ["walkslow", "천천히 걷기"], ["survey", "둘러보기"], ["gallop", "질주"], ["idle", "가만히 있기"],
+  ["walk", "걷기"], ["run", "달리기"], ["jump", "점프"], ["attack", "공격"]];
+const animLabel = a => { const k = a.toLowerCase().replace(/^.*\|/, "").replace(/[^a-z0-9]/g, "");
+  return (ANIM_KO.find(([e]) => k === e) || ANIM_KO.find(([e]) => k.includes(e)) || [0, a])[1]; };
+
