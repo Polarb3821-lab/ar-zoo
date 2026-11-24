@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AR 탐구실</title>
+<!-- Google model-viewer: 3D 표시 + AR(안드로이드 Scene Viewer / iOS Quick Look / WebXR) -->
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif;
+         background: #f4f1ea; color: #222; }
+  header { padding: 16px 20px 4px; }
+  h1 { margin: 0; font-size: 22px; }
+  p.sub { margin: 4px 0 0; color: #666; font-size: 14px; }
+  .tabs { display: flex; gap: 6px; padding: 12px 20px 0; }
+  .tab { flex: 1; border: none; background: #e3ddd0; border-radius: 10px; padding: 10px;
+         font-size: 15px; font-weight: 600; cursor: pointer; color: #555; }
+  .tab.active { background: #222; color: #fff; }
+  .chips { display: flex; gap: 8px; overflow-x: auto; padding: 12px 20px; }
+  .chip { flex: none; border: 1px solid #ccc; background: #fff; border-radius: 999px;
+          padding: 8px 14px; font-size: 15px; cursor: pointer; }
+  .chip.active { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+  model-viewer { width: 100%; height: 58vh; background: radial-gradient(#fff, #e6e1d6); }
+  .info { padding: 12px 20px 30px; max-width: 720px; }
+  .info h2 { margin: 0 0 4px; font-size: 20px; }
+  .info .size { color: #666; font-size: 14px; }
+  .info p { line-height: 1.6; }
+  .ar-btn { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+            background: #1a73e8; color: #fff; border: none; border-radius: 999px;
+            padding: 12px 22px; font-size: 16px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+</style>
+</head>
+<body>
+<header>
+  <h1>🔭 AR 탐구실</h1>
+  <p class="sub">모델을 고르고 휴대폰에서 “내 공간에서 보기”를 누르세요.</p>
+</header>
+
+<div class="tabs" id="tabs"></div>
+<div class="chips" id="chips"></div>
+
+<model-viewer id="viewer"
+  camera-controls touch-action="pan-y"
+  autoplay shadow-intensity="1" exposure="1.1"
+  ar ar-modes="scene-viewer webxr quick-look" ar-scale="fixed"
+  alt="3D 모델">
+  <button slot="ar-button" class="ar-btn">📱 내 공간에서 보기 (AR)</button>
+</model-viewer>
+
+<div class="info">
+  <h2 id="name"></h2>
+  <div class="size" id="size"></div>
+  <p id="desc"></p>
+</div>
+
+<script>
+// ▼ 모델 목록 — 여기에 한 줄씩 추가하면 됩니다.
+//   src: .glb 주소 / length: 실제 크기(m)를 주면 그 크기로 자동 축척, 없으면 파일 크기 그대로
+const GH = "https://raw.githubusercontent.com";
+const CATALOG = {
+  "🐾 동물": [
+    { name: "여우", length: 0.9, src: `${GH}/KhronosGroup/glTF-Sample-Assets/main/Models/Fox/glTF-Binary/Fox.glb`,
+      desc: "붉은여우는 몸길이 약 60~90cm, 꼬리는 30~50cm 정도입니다." },
+    { name: "말", length: 2.4, src: `${GH}/mrdoob/three.js/master/examples/models/gltf/Horse.glb`,
+      desc: "말은 몸길이 약 2.4m, 어깨 높이 1.4~1.8m입니다." },
+    { name: "홍학", length: 1.3, src: `${GH}/mrdoob/three.js/master/examples/models/gltf/Flamingo.glb`,
+      desc: "홍학은 날개를 펴면 1.4~1.7m에 이릅니다." },
+    { name: "앵무새", length: 0.9, src: `${GH}/mrdoob/three.js/master/examples/models/gltf/Parrot.glb`,
+      desc: "큰 앵무새(마코앵무) 날개 편 길이는 약 1m입니다." },
+    { name: "황새", length: 2.0, src: `${GH}/mrdoob/three.js/master/examples/models/gltf/Stork.glb`,
+      desc: "황새는 날개를 펴면 약 2m가 됩니다." },
+  ],
+  "📐 수학": [
+    { name: "정사면체", src: "models/tetrahedron.glb",
+      desc: "정삼각형 4개. 꼭짓점 4, 모서리 6, 면 4 → v − e + f = 2 (오일러 공식)." },
+    { name: "정육면체", src: "models/cube.glb",
+      desc: "정사각형 6개. v = 8, e = 12, f = 6. 정팔면체와 서로 쌍대입니다." },
+    { name: "정팔면체", src: "models/octahedron.glb",
+      desc: "정삼각형 8개. v = 6, e = 12, f = 8. 한 꼭짓점에 면이 4개씩 모입니다." },
+    { name: "정십이면체", src: "models/dodecahedron.glb",
+      desc: "정오각형 12개. v = 20, e = 30, f = 12. 정이십면체와 쌍대입니다." },
+    { name: "정이십면체", src: "models/icosahedron.glb",
+      desc: "정삼각형 20개. v = 12, e = 30, f = 20. 한 꼭짓점에 면이 5개씩 모입니다." },
+    { name: "토러스", src: "models/torus.glb",
+      desc: "도넛 모양 곡면. 오일러 지표 0. 바깥쪽은 가우스 곡률이 양수, 안쪽은 음수입니다." },
+    { name: "뫼비우스 띠", src: "models/mobius.glb",
+      desc: "면이 하나뿐인 곡면(비가향). 띠를 따라 한 바퀴 돌면 앞뒤가 뒤바뀝니다." },
+    { name: "말안장면", src: "models/saddle.glb",
+      desc: "z = x² − y² (쌍곡포물면). 원점에서 가우스 곡률이 음수인 대표 예입니다." },
+    { name: "헬리코이드", src: "models/helicoid.glb",
+      desc: "나선면. 평균곡률이 0인 극소곡면이며, 카테노이드와 국소적으로 등거리 변형됩니다." },
+    { name: "카테노이드", src: "models/catenoid.glb",
+      desc: "현수선을 회전시킨 곡면. 두 고리 사이 비누막이 만드는 극소곡면입니다." },
+    { name: "클라인 병", src: "models/klein.glb",
+      desc: "안과 밖 구분이 없는 닫힌 곡면. 3차원에서는 자기 자신을 관통해야만 만들 수 있습니다." },
+  ],
+  "🧪 과학": [
+    { name: "물 (H₂O)", src: "models/water.glb",
+      desc: "굽은형 구조. 결합각 약 104.5°. 산소의 비공유 전자쌍 2개가 수소를 밀어냅니다." },
+    { name: "메테인 (CH₄)", src: "models/methane.glb",
+      desc: "정사면체형 구조. 결합각 109.5°. 탄소가 정사면체의 중심에 있습니다." },
+    { name: "암모니아 (NH₃)", src: "models/ammonia.glb",
+      desc: "삼각뿔형 구조. 결합각 약 107°. 질소의 비공유 전자쌍 1개가 위쪽을 차지합니다." },
+    { name: "이산화탄소 (CO₂)", src: "models/co2.glb",
+      desc: "직선형 구조. 결합각 180°로 극성이 상쇄되어 무극성 분자입니다." },
+    { name: "DNA 이중나선", src: "models/dna.glb",
+      desc: "두 가닥이 꼬인 나선. 한 바퀴에 약 10염기쌍. 색깔 막대는 염기쌍(A–T, G–C)을 나타냅니다." },
+    { name: "탄소 원자 (보어 모형)", src: "models/atom.glb",
+      desc: "원자핵(양성자 6, 중성자 6) 둘레에 전자 껍질 2개(전자 2, 4). 실제 크기는 아닙니다." },
+  ],
+};
+
+const viewer = document.getElementById("viewer");
+const tabs = document.getElementById("tabs");
+const chips = document.getElementById("chips");
+let current = null;
+
+Object.keys(CATALOG).forEach((cat, i) => {
+  const b = document.createElement("button");
+  b.className = "tab"; b.textContent = cat;
+  b.onclick = () => showCategory(cat);
+  tabs.appendChild(b);
+});
+
+function showCategory(cat) {
+  [...tabs.children].forEach(t => t.classList.toggle("active", t.textContent === cat));
+  chips.innerHTML = "";
+  CATALOG[cat].forEach((m, i) => {
+    const b = document.createElement("button");
+    b.className = "chip"; b.textContent = m.name;
+    b.onclick = () => select(cat, i);
+    chips.appendChild(b);
+  });
+  select(cat, 0);
+}
+
+function select(cat, i) {
+  current = CATALOG[cat][i];
+  [...chips.children].forEach((c, j) => c.classList.toggle("active", i === j));
+  viewer.scale = "1 1 1";
+  viewer.autoRotate = !cat.includes("동물");   // 수학·과학 모델은 천천히 회전
+  viewer.src = current.src;
+  document.getElementById("name").textContent = current.name;
+  document.getElementById("size").textContent = "";
+  document.getElementById("desc").textContent = current.desc;
+}
+
+// 로드 후 크기 맞추기 + 크기 표시
+viewer.addEventListener("load", () => {
+  if (!current) return;
+  let d = viewer.getDimensions();
+  let longest = Math.max(d.x, d.y, d.z);
+  if (current.length && longest > 0) {
+    const s = current.length / longest;
+    viewer.scale = `${s} ${s} ${s}`;
+    viewer.updateFraming();
+    longest = current.length;
+  }
+  document.getElementById("size").textContent = `AR 크기: 약 ${Math.round(longest * 100)} cm`;
+});
+
+viewer.addEventListener("ar-status", e => {
+  if (e.detail.status === "failed") alert("이 기기/브라우저에서는 AR을 열 수 없어요.");
+});
+
+showCategory(Object.keys(CATALOG)[0]);
+</script>
+</body>
+</html>
