@@ -51,10 +51,16 @@
   .panel .desc { display:none; font-size:13px; line-height:1.5; margin-top:8px; opacity:.95; }
   .panel.show-desc .desc { display:block; }
   /* AR 중에는 패널을 조금 위로, AR 시작 버튼은 숨김 */
-  model-viewer[ar-status="session-started"] .panel { bottom: 28px; }
-  model-viewer[ar-status="session-started"] .ar-btn { display:none; }
+  model-viewer[ar-status="session-started"] .panel,
+  model-viewer[ar-status="object-placed"] .panel { bottom: 28px; }
+  model-viewer[ar-status="session-started"] .ar-btn,
+  model-viewer[ar-status="object-placed"] .ar-btn { display:none; }
   .ar-hint { display:none; position:absolute; top:16px; left:50%; transform:translateX(-50%);
              background:rgba(0,0,0,.6); color:#fff; padding:8px 14px; border-radius:999px; font-size:13px; }
+  .ar-guide { display:none; position:absolute; top:16px; left:50%; transform:translateX(-50%);
+              width:max-content; max-width:92%; background:rgba(0,0,0,.6); color:#fff; padding:8px 14px;
+              border-radius:12px; font-size:13px; text-align:center; }
+  model-viewer[ar-status="object-placed"] .ar-guide { display:block; }
   model-viewer[ar-tracking="not-tracking"] .ar-hint,
   model-viewer[ar-status="session-started"]:not([ar-tracking]) .ar-hint { display:block; }
 </style>
@@ -72,10 +78,12 @@
 <model-viewer id="viewer"
   camera-controls touch-action="pan-y"
   autoplay shadow-intensity="1" exposure="1.1"
-  ar ar-modes="webxr scene-viewer quick-look" ar-scale="fixed" ar-placement="floor"
+  ar ar-modes="webxr scene-viewer quick-look" ar-scale="auto" ar-placement="floor"
   alt="3D 모델">
-  <button slot="ar-button" class="ar-btn">📱 AR로 보기</button>
+  <div slot="ar-button" style="display:none"></div><!-- 기본 AR 버튼 숨김: 아래 버튼으로 직접 시작 -->
+  <button class="ar-btn" id="arBtn" style="display:none">📱 AR로 보기</button>
   <div class="ar-hint">휴대폰을 천천히 움직여 바닥을 비춰 주세요</div>
+  <div class="ar-guide">👆 모델 <b>발밑</b>을 끌면 이동 · 한 손가락으로 쓸면 회전 · 🤏 두 손가락으로 크기 조절</div>
 
   <div class="panel" id="panel">
     <div class="title">
@@ -85,6 +93,7 @@
     </div>
     <div class="row">
       <button data-act="smaller">➖ 작게</button>
+      <button data-act="fit30">📏 30cm</button>
       <button data-act="real">실제 크기</button>
       <button data-act="bigger">➕ 크게</button>
     </div>
@@ -166,7 +175,9 @@ const CATALOG = {
 const $ = id => document.getElementById(id);
 const viewer = $("viewer"), tabs = $("tabs"), chips = $("chips"), panel = $("panel");
 let cat = null, idx = 0, current = null;
-let mul = 1, yaw = 0, animIdx = 0, baseLength = 0;
+const AR_HEIGHT = 0.30;          // AR 처음 등장 높이 (m)
+let sc = 1, yaw = 0, animIdx = 0, baseLength = 0, baseHeight = 0, arWanted = false;
+const fit30 = () => (baseHeight > 0 ? AR_HEIGHT / baseHeight : 1);
 
 // ---- 카테고리 / 모델 선택 ----
 Object.keys(CATALOG).forEach(c => {
@@ -192,7 +203,7 @@ function select(i) {
   idx = (i + list.length) % list.length;
   current = list[idx];
   [...chips.children].forEach((c, j) => c.classList.toggle("active", idx === j));
-  mul = 1; yaw = 0; animIdx = 0;
+  yaw = 0; animIdx = 0;
   viewer.scale = "1 1 1"; viewer.orientation = "0deg 0deg 0deg";
   viewer.autoRotate = !cat.includes("동물") && !inAR();
   viewer.src = current.src;
@@ -201,12 +212,13 @@ function select(i) {
   $("size").textContent = "";
 }
 
-const inAR = () => viewer.getAttribute("ar-status") === "session-started";
+const inAR = () => ["session-started", "object-placed"].includes(viewer.getAttribute("ar-status"));
 
 // ---- 로드 후 처리 (모델 파일이 이미 실제 크기(m)로 만들어져 있음) ----
 viewer.addEventListener("load", async () => {
   const d = viewer.getDimensions();
-  baseLength = Math.max(d.x, d.y, d.z);
+  baseLength = Math.max(d.x, d.y, d.z); baseHeight = d.y;
+  sc = arWanted ? fit30() : 1;      // AR 중이면 30cm 높이로, 아니면 실제 크기
   applyTransform();
   await viewer.updateComplete;
   if (!inAR()) viewer.updateFraming();
@@ -220,11 +232,10 @@ viewer.addEventListener("load", async () => {
 });
 
 function applyTransform() {
-  const s = mul;
-  viewer.scale = `${s} ${s} ${s}`;
+  viewer.scale = `${sc} ${sc} ${sc}`;
   viewer.orientation = `0deg 0deg ${yaw}deg`;
-  const cm = Math.round(baseLength * mul * 100);
-  $("readout").textContent = `크기 ×${+mul.toFixed(2)} (약 ${cm >= 100 ? (cm/100).toFixed(1) + " m" : cm + " cm"}) · 회전 ${((yaw % 360) + 360) % 360}°`;
+  const fmt = m => { const cm = Math.round(m * 100); return cm >= 100 ? (cm / 100).toFixed(1) + " m" : cm + " cm"; };
+  $("readout").textContent = `높이 약 ${fmt(baseHeight * sc)} · 실제의 ×${+sc.toFixed(2)} · 회전 ${((yaw % 360) + 360) % 360}°`;
 }
 
 async function reframe() { await viewer.updateComplete; if (!inAR()) viewer.updateFraming(); }
@@ -233,9 +244,10 @@ async function reframe() { await viewer.updateComplete; if (!inAR()) viewer.upda
 const actions = {
   prev:    () => select(idx - 1),
   next:    () => select(idx + 1),
-  smaller: () => { mul = Math.max(0.1, mul / 1.5); applyTransform(); reframe(); },
-  bigger:  () => { mul = Math.min(10, mul * 1.5); applyTransform(); reframe(); },
-  real:    () => { mul = 1; applyTransform(); reframe(); },
+  smaller: () => { sc = sc / 1.5; applyTransform(); reframe(); },
+  bigger:  () => { sc = sc * 1.5; applyTransform(); reframe(); },
+  fit30:   () => { sc = fit30(); applyTransform(); reframe(); },
+  real:    () => { sc = 1; applyTransform(); reframe(); },
   rotL:    () => { yaw += 45; applyTransform(); },
   rotR:    () => { yaw -= 45; applyTransform(); },
   play:    () => {
@@ -287,12 +299,25 @@ viewer.addEventListener("error", e => {
 viewer.addEventListener("ar-status", e => {
   const st = e.detail.status;
   if (st === "session-started") viewer.autoRotate = false;
-  if (st === "not-presenting") viewer.autoRotate = !cat.includes("동물");
+  if (st === "not-presenting" || st === "failed") {      // AR 종료 → 3D 화면은 실제 크기로 복귀
+    arWanted = false; sc = 1; applyTransform(); reframe();
+    viewer.autoRotate = !cat.includes("동물");
+  }
   if (st === "failed")
     $("diag").innerHTML += isAndroid
       ? "<br>AR 실패 → Play 스토어에서 ‘Google Play 서비스(AR)’를 설치·업데이트해 주세요."
       : "<br>AR 실패 → Safari에서 열었는지, iOS가 최신인지 확인해 주세요.";
 });
+
+// ---- AR 시작: 높이 30cm로 맞춘 뒤 시작 → 가까운 곳에 작게 등장, 이후 두 손가락으로 자유롭게 크기 조절 ----
+const arBtn = $("arBtn");
+arBtn.addEventListener("click", async e => {
+  e.stopPropagation();
+  arWanted = true; yaw = 0; sc = fit30(); applyTransform();
+  await viewer.updateComplete;
+  viewer.activateAR();
+});
+viewer.addEventListener("load", () => { arBtn.style.display = viewer.canActivateAR ? "" : "none"; });
 
 // model-viewer가 준비된 뒤에 시작
 customElements.whenDefined("model-viewer").then(() => showCategory(Object.keys(CATALOG)[0]));
