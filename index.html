@@ -131,6 +131,34 @@ const CATALOG = {
       desc: "큰 앵무새(마코앵무) 날개 편 길이는 약 1m입니다." },
     { name: "황새", src: "models/animals/Stork.glb",
       desc: "황새는 날개를 펴면 약 2m가 됩니다." },
+    { name: "젖소", src: "models/animals/Cow.glb",
+      desc: "젖소(홀스타인)는 몸길이 약 2.4m, 몸무게 600~700kg입니다." },
+    { name: "말 (농장)", src: "models/animals/FarmHorse.glb",
+      desc: "말은 몸길이 약 2.4m입니다. 🎬 버튼으로 걷기·점프 등 동작을 바꿔 보세요." },
+    { name: "얼룩말", src: "models/animals/Zebra.glb",
+      desc: "얼룩말의 줄무늬는 개체마다 달라서 사람의 지문처럼 구별에 쓰입니다. 몸길이 약 2.4m." },
+    { name: "라마", src: "models/animals/Llama.glb",
+      desc: "남아메리카 안데스 지역의 가축. 머리까지 높이 약 1.8m입니다." },
+    { name: "돼지", src: "models/animals/Pig.glb",
+      desc: "돼지는 몸길이 약 1.5m. 후각이 매우 발달한 동물입니다." },
+    { name: "양", src: "models/animals/Sheep.glb",
+      desc: "양은 몸길이 약 1.3m. 털은 1년에 한 번 정도 깎습니다." },
+    { name: "퍼그", src: "models/animals/Pug.glb",
+      desc: "퍼그는 몸길이 약 45cm의 소형견입니다." },
+  ],
+  "🦖 공룡": [
+    { name: "티라노사우루스", src: "models/animals/trex.glb",
+      desc: "백악기 후기의 육식공룡. 몸길이 약 12m, 무는 힘이 육상동물 중 가장 강했던 것으로 추정됩니다." },
+    { name: "벨로키랍토르", src: "models/animals/velociraptor.glb",
+      desc: "몸길이 약 2m의 작고 날쌘 육식공룡. 뒷발에 갈고리 발톱이 있고, 깃털이 있었던 것으로 알려져 있습니다." },
+    { name: "트리케라톱스", src: "models/animals/triceratops.glb",
+      desc: "뿔 세 개와 큰 목 방패를 가진 초식공룡. 몸길이 약 9m입니다." },
+    { name: "스테고사우루스", src: "models/animals/stegosaurus.glb",
+      desc: "등에 큰 골판, 꼬리에 가시가 있는 쥐라기 초식공룡. 몸길이 약 9m입니다." },
+    { name: "아파토사우루스", src: "models/animals/apatosaurus.glb",
+      desc: "긴 목과 꼬리를 가진 거대한 용각류. 몸길이 약 22m로, 실제 크기로 보면 교실보다 큽니다." },
+    { name: "파라사우롤로푸스", src: "models/animals/parasaurolophus.glb",
+      desc: "머리 뒤로 긴 볏이 있는 오리주둥이 공룡. 볏 속 관으로 소리를 냈을 것으로 추정됩니다. 몸길이 약 9.5m." },
   ],
   "📐 수학": [
     { name: "정사면체", src: "models/tetrahedron.glb",
@@ -205,7 +233,7 @@ function select(i) {
   [...chips.children].forEach((c, j) => c.classList.toggle("active", idx === j));
   yaw = 0; animIdx = 0;
   viewer.scale = "1 1 1"; viewer.orientation = "0deg 0deg 0deg";
-  viewer.autoRotate = !cat.includes("동물") && !inAR();
+  viewer.autoRotate = !/동물|공룡/.test(cat) && !inAR();
   viewer.src = current.src;
   $("name").textContent = $("pName").textContent = current.name;
   $("desc").textContent = $("pDesc").textContent = current.desc;
@@ -222,10 +250,15 @@ viewer.addEventListener("load", async () => {
   applyTransform();
   await viewer.updateComplete;
   if (!inAR()) viewer.updateFraming();
-  const anims = viewer.availableAnimations || [];
+  const anims = animList();
   $("animBtn").style.display = anims.length > 1 ? "" : "none";
   $("playBtn").style.display = anims.length ? "" : "none";
-  if (anims.length) { viewer.animationName = anims[anims.length > 1 ? 1 : 0]; viewer.play(); }
+  if (anims.length) {
+    // 기본 동작: 걷기 → 대기 → 첫 번째 순
+    const pick = anims.find(a => /^walk$/i.test(a)) || anims.find(a => /walk/i.test(a)) || anims.find(a => /idle/i.test(a)) || anims[0];
+    animIdx = anims.indexOf(pick);
+    viewer.animationName = pick; viewer.play();
+  }
   $("playBtn").textContent = "⏸ 정지";
   $("size").textContent = `실제 크기 기준: 약 ${Math.round(baseLength * 100)} cm`;
   writeDiag();
@@ -237,6 +270,13 @@ function applyTransform() {
   const fmt = m => { const cm = Math.round(m * 100); return cm >= 100 ? (cm / 100).toFixed(1) + " m" : cm + " cm"; };
   $("readout").textContent = `높이 약 ${fmt(baseHeight * sc)} · 실제의 ×${+sc.toFixed(2)} · 회전 ${((yaw % 360) + 360) % 360}°`;
 }
+
+// 동작 목록 ('죽음' 동작은 제외) + 한글 이름
+const animList = () => (viewer.availableAnimations || []).filter(a => !/death/i.test(a));
+const ANIM_KO = { idle: "가만히 있기", walkslow: "천천히 걷기", walk: "걷기", run: "달리기", jump: "점프",
+                  attack: "공격", survey: "둘러보기", gallop: "달리기" };
+const animLabel = a => { const k = a.toLowerCase().replace(/^.*\|/, "").replace(/[^a-z]/g, "");
+  return ANIM_KO[k] || Object.entries(ANIM_KO).find(([e]) => k.includes(e))?.[1] || a; };
 
 async function reframe() { await viewer.updateComplete; if (!inAR()) viewer.updateFraming(); }
 
@@ -255,12 +295,12 @@ const actions = {
     else { viewer.pause(); $("playBtn").textContent = "▶ 재생"; }
   },
   anim:    () => {
-    const a = viewer.availableAnimations || [];
+    const a = animList();
     if (!a.length) return;
     animIdx = (animIdx + 1) % a.length;
     viewer.animationName = a[animIdx]; viewer.play();
     $("playBtn").textContent = "⏸ 정지";
-    $("readout").textContent = `동작: ${a[animIdx]}`;
+    $("readout").textContent = `동작: ${animLabel(a[animIdx])}`;
   },
   info:    () => panel.classList.toggle("show-desc"),
 };
@@ -301,7 +341,7 @@ viewer.addEventListener("ar-status", e => {
   if (st === "session-started") viewer.autoRotate = false;
   if (st === "not-presenting" || st === "failed") {      // AR 종료 → 3D 화면은 실제 크기로 복귀
     arWanted = false; sc = 1; applyTransform(); reframe();
-    viewer.autoRotate = !cat.includes("동물");
+    viewer.autoRotate = !/동물|공룡/.test(cat);
   }
   if (st === "failed")
     $("diag").innerHTML += isAndroid
