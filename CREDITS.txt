@@ -11,7 +11,3 @@
 - 동물·공룡 모델은 처음에 높이 30cm로 보이도록 최상위 노드에 축척만 추가했습니다.
 
 
-마커 모드 라이브러리 (lib 폴더, 모두 MIT 라이선스)
-- A-Frame 1.6.0 — https://github.com/aframevr/aframe
-- AR.js 3.4.8 — https://github.com/AR-js-org/AR.js (camera_para.dat 포함)
-- 발자국 마커(marker/paw.patt, paw-marker-A4.pdf)는 AR.js 마커 생성 코드로 직접 제작

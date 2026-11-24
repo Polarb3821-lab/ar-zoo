@@ -1,4 +1,4 @@
-// AR 동물원 — 두 페이지(index.html, marker.html)가 함께 쓰는 모델 목록과 동작 이름
+// AR 동물원 — index.html이 쓰는 모델 목록과 동작 이름
 // ▼ 모델 목록 — 한 줄씩 추가하면 됩니다.
 //   src: .glb 경로 (처음 높이 30cm로 만들어 둠) / real: 실제 크기가 되는 배율 / desc: 설명
 window.CATALOG = {

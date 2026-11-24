@@ -35,7 +35,6 @@
             background: #1a73e8; color: #fff; border: none; border-radius: 999px;
             padding: 10px 18px; font-size: 15px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
 
-  .marker-btn { top: 62px; background: #222; text-decoration: none; }
   /* 조작 패널: 3D 화면과 AR(WebXR) 화면 모두에서 보임 */
   .panel { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
            width: min(96%, 460px); background: rgba(20,20,20,.72); color: #fff;
@@ -72,7 +71,7 @@
 <body>
 <header>
   <h1>🦖 AR 동물원</h1>
-  <p class="sub">모델을 고르고 “바닥에 놓기” 또는 “마커 위에 놓기”를 누르세요. <a href="marker/paw-marker-A4.pdf">마커 인쇄하기</a></p>
+  <p class="sub">모델을 고르고 휴대폰에서 “AR로 보기”를 누르세요.</p>
 </header>
 
 <div id="inapp"></div>
@@ -85,8 +84,7 @@
   ar ar-modes="webxr scene-viewer quick-look" ar-scale="auto" ar-placement="floor"
   alt="3D 모델">
   <div slot="ar-button" style="display:none"></div><!-- 기본 AR 버튼 숨김: 아래 버튼으로 직접 시작 -->
-  <button class="ar-btn" id="arBtn" style="display:none">📱 바닥에 놓기</button>
-  <a class="ar-btn marker-btn" id="markerBtn" href="marker.html">🎴 마커 위에 놓기</a>
+  <button class="ar-btn" id="arBtn" style="display:none">📱 AR로 보기</button>
   <div class="ar-hint">휴대폰을 천천히 움직여 바닥을 비춰 주세요</div>
   <div class="ar-guide">👆 모델 <b>발밑</b>을 끌면 이동 · 한 손가락으로 쓸면 회전 · 🤏 두 손가락으로 크기 조절</div>
 
@@ -176,7 +174,6 @@ function select(i) {
   viewer.cameraOrbit = "auto auto auto";
   viewer.maxCameraOrbit = "auto auto auto";
   viewer.src = current.src;
-  $("markerBtn").href = `marker.html?cat=${encodeURIComponent(cat)}&i=${idx}`;   // 같은 모델로 마커 모드 시작
   $("name").textContent = $("pName").textContent = current.name;
   $("desc").textContent = $("pDesc").textContent = current.desc;
   $("size").textContent = "";
@@ -310,13 +307,10 @@ arBtn.addEventListener("click", async e => {
   await viewer.updateComplete;
   viewer.activateAR();
 });
-viewer.addEventListener("load", () => {
-  arBtn.style.display = viewer.canActivateAR ? "" : "none";
-  $("markerBtn").style.top = viewer.canActivateAR ? "62px" : "12px";   // 바닥 AR이 안 되는 기기면 마커 버튼을 위로
-});
+viewer.addEventListener("load", () => { arBtn.style.display = viewer.canActivateAR ? "" : "none"; });
 
 // model-viewer가 준비된 뒤에 시작
-// 마커 모드에서 돌아오면 보던 모델로 (?cat=..&i=..)
+// 주소에 ?cat=..&i=.. 가 있으면 그 모델로 시작
 const q = new URLSearchParams(location.search);
 let startIdx = parseInt(q.get("i")) || 0;
 const startCat = CATALOG[q.get("cat")] ? q.get("cat") : Object.keys(CATALOG)[0];
