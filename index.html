@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AR 탐구실</title>
-<!-- Google model-viewer: 3D 표시 + AR(안드로이드 Scene Viewer / iOS Quick Look / WebXR) -->
+<!-- Google model-viewer: 3D 표시 + AR(안드로이드 WebXR·Scene Viewer / iOS Quick Look) -->
 <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
 <style>
   * { box-sizing: border-box; }
@@ -13,6 +13,8 @@
   header { padding: 16px 20px 4px; }
   h1 { margin: 0; font-size: 22px; }
   p.sub { margin: 4px 0 0; color: #666; font-size: 14px; }
+  #inapp { display:none; background:#ffe08a; padding:12px 20px; font-size:14px; line-height:1.5; }
+  #inapp a { font-weight:700; color:#1a3fbf; }
   .tabs { display: flex; gap: 6px; padding: 12px 20px 0; }
   .tab { flex: 1; border: none; background: #e3ddd0; border-radius: 10px; padding: 10px;
          font-size: 15px; font-weight: 600; cursor: pointer; color: #555; }
@@ -21,22 +23,46 @@
   .chip { flex: none; border: 1px solid #ccc; background: #fff; border-radius: 999px;
           padding: 8px 14px; font-size: 15px; cursor: pointer; }
   .chip.active { background: #1a73e8; color: #fff; border-color: #1a73e8; }
-  model-viewer { width: 100%; height: 58vh; background: radial-gradient(#fff, #e6e1d6); }
+  model-viewer { width: 100%; height: 64vh; background: radial-gradient(#fff, #e6e1d6); }
   .info { padding: 12px 20px 30px; max-width: 720px; }
   .info h2 { margin: 0 0 4px; font-size: 20px; }
   .info .size { color: #666; font-size: 14px; }
   .info p { line-height: 1.6; }
-  #inapp { display:none; background:#ffe08a; padding:12px 20px; font-size:14px; line-height:1.5; }
-  #inapp a { font-weight:700; color:#1a3fbf; }
-  .ar-btn { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+  #diag { margin-top:8px; font-size:13px; background:#fff; border-radius:8px; padding:8px 10px; color:#444; }
+
+  /* AR 시작 버튼 */
+  .ar-btn { position: absolute; right: 12px; top: 12px;
             background: #1a73e8; color: #fff; border: none; border-radius: 999px;
-            padding: 12px 22px; font-size: 16px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+            padding: 10px 18px; font-size: 15px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+
+  /* 조작 패널: 3D 화면과 AR(WebXR) 화면 모두에서 보임 */
+  .panel { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
+           width: min(96%, 460px); background: rgba(20,20,20,.72); color: #fff;
+           border-radius: 16px; padding: 8px 10px 10px; backdrop-filter: blur(6px);
+           -webkit-backdrop-filter: blur(6px); }
+  .panel .title { display:flex; align-items:center; justify-content:space-between; gap:6px; }
+  .panel .title b { font-size: 16px; text-align:center; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .panel .row { display:flex; gap:6px; margin-top:8px; }
+  .panel button { flex:1; border:none; border-radius:10px; padding:10px 0; font-size:16px;
+                  background: rgba(255,255,255,.16); color:#fff; cursor:pointer; }
+  .panel button:active { background: rgba(255,255,255,.35); }
+  .panel .nav { flex: none; width: 44px; }
+  .panel .readout { font-size:12px; opacity:.8; text-align:center; margin-top:6px; }
+  .panel .desc { display:none; font-size:13px; line-height:1.5; margin-top:8px; opacity:.95; }
+  .panel.show-desc .desc { display:block; }
+  /* AR 중에는 패널을 조금 위로, AR 시작 버튼은 숨김 */
+  model-viewer[ar-status="session-started"] .panel { bottom: 28px; }
+  model-viewer[ar-status="session-started"] .ar-btn { display:none; }
+  .ar-hint { display:none; position:absolute; top:16px; left:50%; transform:translateX(-50%);
+             background:rgba(0,0,0,.6); color:#fff; padding:8px 14px; border-radius:999px; font-size:13px; }
+  model-viewer[ar-tracking="not-tracking"] .ar-hint,
+  model-viewer[ar-status="session-started"]:not([ar-tracking]) .ar-hint { display:block; }
 </style>
 </head>
 <body>
 <header>
   <h1>🔭 AR 탐구실</h1>
-  <p class="sub">모델을 고르고 휴대폰에서 “내 공간에서 보기”를 누르세요.</p>
+  <p class="sub">모델을 고르고 휴대폰에서 “AR로 보기”를 누르세요.</p>
 </header>
 
 <div id="inapp"></div>
@@ -46,33 +72,55 @@
 <model-viewer id="viewer"
   camera-controls touch-action="pan-y"
   autoplay shadow-intensity="1" exposure="1.1"
-  ar ar-modes="webxr scene-viewer quick-look" ar-scale="fixed"
+  ar ar-modes="webxr scene-viewer quick-look" ar-scale="fixed" ar-placement="floor"
   alt="3D 모델">
-  <button slot="ar-button" class="ar-btn">📱 내 공간에서 보기 (AR)</button>
+  <button slot="ar-button" class="ar-btn">📱 AR로 보기</button>
+  <div class="ar-hint">휴대폰을 천천히 움직여 바닥을 비춰 주세요</div>
+
+  <div class="panel" id="panel">
+    <div class="title">
+      <button class="nav" data-act="prev">◀</button>
+      <b id="pName"></b>
+      <button class="nav" data-act="next">▶</button>
+    </div>
+    <div class="row">
+      <button data-act="smaller">➖ 작게</button>
+      <button data-act="real">실제 크기</button>
+      <button data-act="bigger">➕ 크게</button>
+    </div>
+    <div class="row">
+      <button data-act="rotL">⟲ 45°</button>
+      <button data-act="rotR">⟳ 45°</button>
+      <button data-act="play" id="playBtn">⏸ 정지</button>
+      <button data-act="anim" id="animBtn">🎬 동작</button>
+      <button data-act="info">ℹ️</button>
+    </div>
+    <div class="readout" id="readout"></div>
+    <div class="desc" id="pDesc"></div>
+  </div>
 </model-viewer>
 
 <div class="info">
   <h2 id="name"></h2>
   <div class="size" id="size"></div>
-  <div id="diag" style="margin-top:8px;font-size:13px;background:#fff;border-radius:8px;padding:8px 10px;color:#444"></div>
   <p id="desc"></p>
+  <div id="diag"></div>
 </div>
 
 <script>
-// ▼ 모델 목록 — 여기에 한 줄씩 추가하면 됩니다.
-//   src: .glb 주소 / length: 실제 크기(m)를 주면 그 크기로 자동 축척, 없으면 파일 크기 그대로
-const GH = "https://raw.githubusercontent.com";
+// ▼ 모델 목록 — 한 줄씩 추가하면 됩니다.
+//   src: .glb 경로 / length: 실제 크기(m) → 그 크기로 자동 축척 (없으면 파일 크기 그대로)
 const CATALOG = {
   "🐾 동물": [
-    { name: "여우", length: 0.9, src: `${GH}/KhronosGroup/glTF-Sample-Assets/main/Models/Fox/glTF-Binary/Fox.glb`,
-      desc: "붉은여우는 몸길이 약 60~90cm, 꼬리는 30~50cm 정도입니다." },
-    { name: "말", length: 2.4, src: `${GH}/mrdoob/three.js/master/examples/models/gltf/Horse.glb`,
+    { name: "여우", length: 0.9, src: "models/animals/Fox.glb",
+      desc: "붉은여우는 몸길이 약 60~90cm, 꼬리는 30~50cm 정도입니다. 🎬 버튼으로 걷기·뛰기 동작을 바꿀 수 있어요." },
+    { name: "말", length: 2.4, src: "models/animals/Horse.glb",
       desc: "말은 몸길이 약 2.4m, 어깨 높이 1.4~1.8m입니다." },
-    { name: "홍학", length: 1.3, src: `${GH}/mrdoob/three.js/master/examples/models/gltf/Flamingo.glb`,
+    { name: "홍학", length: 1.3, src: "models/animals/Flamingo.glb",
       desc: "홍학은 날개를 펴면 1.4~1.7m에 이릅니다." },
-    { name: "앵무새", length: 0.9, src: `${GH}/mrdoob/three.js/master/examples/models/gltf/Parrot.glb`,
+    { name: "앵무새", length: 0.9, src: "models/animals/Parrot.glb",
       desc: "큰 앵무새(마코앵무) 날개 편 길이는 약 1m입니다." },
-    { name: "황새", length: 2.0, src: `${GH}/mrdoob/three.js/master/examples/models/gltf/Stork.glb`,
+    { name: "황새", length: 2.0, src: "models/animals/Stork.glb",
       desc: "황새는 날개를 펴면 약 2m가 됩니다." },
   ],
   "📐 수학": [
@@ -115,89 +163,134 @@ const CATALOG = {
   ],
 };
 
-const viewer = document.getElementById("viewer");
-const tabs = document.getElementById("tabs");
-const chips = document.getElementById("chips");
-let current = null;
+const $ = id => document.getElementById(id);
+const viewer = $("viewer"), tabs = $("tabs"), chips = $("chips"), panel = $("panel");
+let cat = null, idx = 0, current = null;
+let baseScale = 1, mul = 1, yaw = 0, animIdx = 0, baseLength = 0;
 
-Object.keys(CATALOG).forEach((cat, i) => {
+// ---- 카테고리 / 모델 선택 ----
+Object.keys(CATALOG).forEach(c => {
   const b = document.createElement("button");
-  b.className = "tab"; b.textContent = cat;
-  b.onclick = () => showCategory(cat);
+  b.className = "tab"; b.textContent = c; b.onclick = () => showCategory(c);
   tabs.appendChild(b);
 });
 
-function showCategory(cat) {
-  [...tabs.children].forEach(t => t.classList.toggle("active", t.textContent === cat));
+function showCategory(c) {
+  cat = c;
+  [...tabs.children].forEach(t => t.classList.toggle("active", t.textContent === c));
   chips.innerHTML = "";
-  CATALOG[cat].forEach((m, i) => {
+  CATALOG[c].forEach((m, i) => {
     const b = document.createElement("button");
-    b.className = "chip"; b.textContent = m.name;
-    b.onclick = () => select(cat, i);
+    b.className = "chip"; b.textContent = m.name; b.onclick = () => select(i);
     chips.appendChild(b);
   });
-  select(cat, 0);
+  select(0);
 }
 
-function select(cat, i) {
-  current = CATALOG[cat][i];
-  [...chips.children].forEach((c, j) => c.classList.toggle("active", i === j));
-  viewer.scale = "1 1 1";
-  viewer.autoRotate = !cat.includes("동물");   // 수학·과학 모델은 천천히 회전
+function select(i) {
+  const list = CATALOG[cat];
+  idx = (i + list.length) % list.length;
+  current = list[idx];
+  [...chips.children].forEach((c, j) => c.classList.toggle("active", idx === j));
+  mul = 1; yaw = 0; animIdx = 0;
+  viewer.scale = "1 1 1"; viewer.orientation = "0deg 0deg 0deg";
+  viewer.autoRotate = !cat.includes("동물") && !inAR();
   viewer.src = current.src;
-  document.getElementById("name").textContent = current.name;
-  document.getElementById("size").textContent = "";
-  document.getElementById("desc").textContent = current.desc;
+  $("name").textContent = $("pName").textContent = current.name;
+  $("desc").textContent = $("pDesc").textContent = current.desc;
+  $("size").textContent = "";
 }
 
-// 로드 후 크기 맞추기 + 크기 표시
+const inAR = () => viewer.getAttribute("ar-status") === "session-started";
+
+// ---- 로드 후 실제 크기 맞추기 ----
 viewer.addEventListener("load", () => {
-  if (!current) return;
-  let d = viewer.getDimensions();
-  let longest = Math.max(d.x, d.y, d.z);
-  if (current.length && longest > 0) {
-    const s = current.length / longest;
-    viewer.scale = `${s} ${s} ${s}`;
-    viewer.updateFraming();
-    longest = current.length;
-  }
-  document.getElementById("size").textContent = `AR 크기: 약 ${Math.round(longest * 100)} cm`;
+  const d = viewer.getDimensions();
+  const longest = Math.max(d.x, d.y, d.z);
+  baseScale = (current.length && longest > 0) ? current.length / longest : 1;
+  baseLength = current.length || longest;
+  applyTransform();
+  viewer.updateFraming();
+  const anims = viewer.availableAnimations || [];
+  $("animBtn").style.display = anims.length > 1 ? "" : "none";
+  $("playBtn").style.display = anims.length ? "" : "none";
+  if (anims.length) { viewer.animationName = anims[0]; viewer.play(); }
+  $("playBtn").textContent = "⏸ 정지";
+  $("size").textContent = `실제 크기 기준: 약 ${Math.round(baseLength * 100)} cm`;
+  writeDiag();
 });
 
-// ---- 진단 ----
-const ua = navigator.userAgent;
-const diag = document.getElementById("diag");
-const log = msg => { diag.innerHTML += msg + "<br>"; };
-const isAndroid = /Android/i.test(ua), isIOS = /iPhone|iPad|iPod/i.test(ua);
-const inApp = /KAKAOTALK|NAVER|Instagram|FBAN|FBAV|Line\/|DaumApps|everytimeApp|; wv\)/i.test(ua);
-
-if (inApp) {
-  const box = document.getElementById("inapp");
-  box.style.display = "block";
-  const url = location.href;
-  if (/KAKAOTALK/i.test(ua)) {
-    box.innerHTML = `⚠️ 카카오톡 안에서는 AR이 열리지 않아요. <a href="kakaotalk://web/openExternal?url=${encodeURIComponent(url)}">외부 브라우저로 열기</a>`;
-  } else if (isAndroid) {
-    box.innerHTML = `⚠️ 앱 안의 브라우저에서는 AR이 열리지 않아요. <a href="intent://${url.replace(/^https?:\/\//, "")}#Intent;scheme=https;package=com.android.chrome;end">Chrome으로 열기</a>`;
-  } else {
-    box.innerHTML = "⚠️ 앱 안의 브라우저에서는 AR이 열리지 않아요. 오른쪽 아래(또는 위) 메뉴에서 ‘Safari로 열기’를 눌러 주세요.";
-  }
+function applyTransform() {
+  const s = baseScale * mul;
+  viewer.scale = `${s} ${s} ${s}`;
+  viewer.orientation = `0deg 0deg ${yaw}deg`;
+  const cm = Math.round(baseLength * mul * 100);
+  $("readout").textContent = `크기 ×${+mul.toFixed(2)} (약 ${cm >= 100 ? (cm/100).toFixed(1) + " m" : cm + " cm"}) · 회전 ${((yaw % 360) + 360) % 360}°`;
 }
 
-viewer.addEventListener("load", () => {
-  diag.innerHTML = "";
-  log(`기기: ${isAndroid ? "안드로이드" : isIOS ? "iOS" : "PC/기타"} · HTTPS: ${location.protocol === "https:" ? "✅" : "❌"} · 앱 내 브라우저: ${inApp ? "⚠️ 예" : "아니오"}`);
-  log(`AR 사용 가능: ${viewer.canActivateAR ? "✅ 예" : "❌ 아니오 (기기·브라우저 미지원)"}`);
-}, { once: false });
+// ---- 조작 패널 (3D 화면 + AR 화면 공통) ----
+const actions = {
+  prev:    () => select(idx - 1),
+  next:    () => select(idx + 1),
+  smaller: () => { mul = Math.max(0.1, mul / 1.5); applyTransform(); },
+  bigger:  () => { mul = Math.min(10, mul * 1.5); applyTransform(); },
+  real:    () => { mul = 1; applyTransform(); },
+  rotL:    () => { yaw += 45; applyTransform(); },
+  rotR:    () => { yaw -= 45; applyTransform(); },
+  play:    () => {
+    if (viewer.paused) { viewer.play(); $("playBtn").textContent = "⏸ 정지"; }
+    else { viewer.pause(); $("playBtn").textContent = "▶ 재생"; }
+  },
+  anim:    () => {
+    const a = viewer.availableAnimations || [];
+    if (!a.length) return;
+    animIdx = (animIdx + 1) % a.length;
+    viewer.animationName = a[animIdx]; viewer.play();
+    $("playBtn").textContent = "⏸ 정지";
+    $("readout").textContent = `동작: ${a[animIdx]}`;
+  },
+  info:    () => panel.classList.toggle("show-desc"),
+};
+panel.addEventListener("click", e => {
+  const b = e.target.closest("button[data-act]");
+  if (b) { e.stopPropagation(); actions[b.dataset.act](); }
+});
+// AR 중 버튼 누를 때 모델이 그 자리로 옮겨지지 않게 막기
+panel.addEventListener("beforexrselect", e => e.preventDefault());
+// 3D 화면에서 패널 위 드래그가 카메라 회전으로 넘어가지 않게
+["pointerdown", "touchstart", "mousedown"].forEach(t =>
+  panel.addEventListener(t, e => e.stopPropagation(), { passive: true }));
 
+// ---- 앱 내 브라우저 안내 + 진단 ----
+const ua = navigator.userAgent;
+const isAndroid = /Android/i.test(ua), isIOS = /iPhone|iPad|iPod/i.test(ua);
+const inApp = /KAKAOTALK|NAVER|Instagram|FBAN|FBAV|Line\/|DaumApps|everytimeApp|; wv\)/i.test(ua);
+if (inApp) {
+  const box = $("inapp"); box.style.display = "block"; const url = location.href;
+  if (/KAKAOTALK/i.test(ua))
+    box.innerHTML = `⚠️ 카카오톡 안에서는 AR이 열리지 않아요. <a href="kakaotalk://web/openExternal?url=${encodeURIComponent(url)}">외부 브라우저로 열기</a>`;
+  else if (isAndroid)
+    box.innerHTML = `⚠️ 앱 안의 브라우저에서는 AR이 열리지 않아요. <a href="intent://${url.replace(/^https?:\/\//, "")}#Intent;scheme=https;package=com.android.chrome;end">Chrome으로 열기</a>`;
+  else
+    box.innerHTML = "⚠️ 앱 안의 브라우저에서는 AR이 열리지 않아요. 메뉴에서 ‘Safari로 열기’를 눌러 주세요.";
+}
+
+function writeDiag() {
+  $("diag").innerHTML =
+    `기기: ${isAndroid ? "안드로이드" : isIOS ? "iOS" : "PC/기타"} · HTTPS: ${location.protocol === "https:" ? "✅" : "❌"} · 앱 내 브라우저: ${inApp ? "⚠️ 예" : "아니오"}<br>` +
+    `AR 사용 가능: ${viewer.canActivateAR ? "✅ 예" : "❌ 아니오 (기기·브라우저 미지원)"}`;
+}
+viewer.addEventListener("error", e => {
+  $("diag").innerHTML += `<br>❌ 모델을 불러오지 못했어요: ${current?.src} — 파일이 함께 올라갔는지 확인하세요.`;
+});
 viewer.addEventListener("ar-status", e => {
   const st = e.detail.status;
-  log(`AR 상태: ${st}`);
-  if (st === "failed") {
-    log(isAndroid
-      ? "→ Play 스토어에서 ‘Google Play 서비스(AR)’를 설치·업데이트했는지 확인하세요."
-      : "→ Safari에서 열었는지, iOS가 최신인지 확인하세요.");
-  }
+  if (st === "session-started") viewer.autoRotate = false;
+  if (st === "not-presenting") viewer.autoRotate = !cat.includes("동물");
+  if (st === "failed")
+    $("diag").innerHTML += isAndroid
+      ? "<br>AR 실패 → Play 스토어에서 ‘Google Play 서비스(AR)’를 설치·업데이트해 주세요."
+      : "<br>AR 실패 → Safari에서 열었는지, iOS가 최신인지 확인해 주세요.";
 });
 
 showCategory(Object.keys(CATALOG)[0]);
